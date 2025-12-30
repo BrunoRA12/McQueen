@@ -1,0 +1,25 @@
+# Archivos de compilación y empaquetado (PyInstaller)
+build/
+dist/
+*.spec
+
+# Si prefieres conservar el .spec para que otros puedan compilarlo igual que tú, 
+# borra la línea de arriba (*.spec)
+
+# Archivos de caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+bin/
+lib/
+
+# Archivos del sistema o IDE
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
