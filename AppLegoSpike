@@ -10,6 +10,8 @@ from tkinter import ttk
 from pybricksdev.ble import find_device
 from pybricksdev.connections.pybricks import PybricksHubBLE
 
+
+#Codigo que se inyecta al hub revisa constantemente el canal usys.stdin con un poll y ejecuta los comandos recibidos
 # -------------------- HUB GATEWAY CODE --------------------
 HUB_GATEWAY_CODE = """
 from pybricks.hubs import PrimeHub
@@ -48,7 +50,7 @@ while True:
             motor_r.stop()
     wait(10)
 """
-
+# worker BLE maneja toda la conexion bluetooth low energy en un hilo separado de la GUI para evitar que esta se congele mientras se transmiten datos
 # -------------------- WORKER BLE --------------------
 
 class BLEWorker:
@@ -112,7 +114,7 @@ class BLEWorker:
         if char and self.loop.is_running() and self.queue is not None:
             self.loop.call_soon_threadsafe(self.queue.put_nowait, char)
 
-
+#La GUI obtiene los inputs desde el teclado o los botones dibujados y genera request de movimiento al hub
 # -------------------- GUI --------------------
 
 class LegoGUI:
