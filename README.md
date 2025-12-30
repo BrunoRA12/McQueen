@@ -36,7 +36,7 @@ Pasos de instalación
 Clonar el repositorio desde GitHub:
 
 Clonar el repositorio.
-git clone https://github.com/tu-usuario/McQueen.git
+git clone https://github.com/BrunoRA12/McQueen
 
 cambiar directorio a la carpeta McQueen.
 cd McQueen
