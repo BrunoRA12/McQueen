@@ -6,50 +6,9 @@ from queue import Queue, Empty
 import tkinter as tk
 from tkinter import ttk
 
-# Requirements: pip install pybricksdev
 from pybricksdev.ble import find_device
 from pybricksdev.connections.pybricks import PybricksHubBLE
 
-
-#Codigo que se inyecta al hub revisa constantemente el canal usys.stdin con un poll y ejecuta los comandos recibidos
-# -------------------- HUB GATEWAY CODE --------------------
-HUB_GATEWAY_CODE = """
-from pybricks.hubs import PrimeHub
-from pybricks.pupdevices import Motor
-from pybricks.parameters import Port
-from pybricks.tools import wait
-import uselect
-import usys
-
-hub = PrimeHub()
-motor_l = Motor(Port.D)
-motor_r = Motor(Port.B)
-
-poll = uselect.poll()
-poll.register(usys.stdin, uselect.POLLIN)
-
-hub.display.char('K') # 'K' for Keyboard Mode
-
-while True:
-    if poll.poll(10):
-        cmd = usys.stdin.read(1)
-        if cmd == 'F':
-            motor_l.run(-800)
-            motor_r.run(800)
-        elif cmd == 'B':
-            motor_l.run(800)
-            motor_r.run(-800)
-        elif cmd == 'L':
-            motor_l.run(300)
-            motor_r.run(300)
-        elif cmd == 'R':
-            motor_l.run(-300)
-            motor_r.run(-300)
-        elif cmd == 'S':
-            motor_l.stop()
-            motor_r.stop()
-    wait(10)
-"""
 # worker BLE maneja toda la conexion bluetooth low energy en un hilo separado de la GUI para evitar que esta se congele mientras se transmiten datos
 # -------------------- WORKER BLE --------------------
 
@@ -72,46 +31,48 @@ class BLEWorker:
         self.loop.run_forever()
 
     async def _runner(self):
-        temp_path = None
         try:
-            self.log("Buscando Hub...")
-            device = await find_device()
+            self.log("Buscando unidad autónoma...")
+            device = await find_device() # Busca cualquier Hub Pybricks cercano
             if not device:
-                self.log("Error: No se encontró Hub.")
+                self.log("Error: No se encontró el Hub.")
                 return
 
             self.hub = PybricksHubBLE(device)
+            
+            # PASO CLAVE: Solo conectar. 
+            # No usamos hub.run(). El Hub ya debe tener su programa iniciado.
             await self.hub.connect()
             
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as tf:
-                tf.write(HUB_GATEWAY_CODE)
-                temp_path = tf.name
-
-            self.log("Conectado. Cargando teclado...")
-            asyncio.create_task(self.hub.run(temp_path))
+            self.log("Vinculado al Servidor Autónomo.")
             self.running.set()
 
+            # Bucle de retransmisión
             while True:
+                # Espera a que la GUI ponga un comando en la cola
                 char_cmd = await self.queue.get()
+                
+                # Escribe el carácter directamente en el puerto serie BLE
+                # El Hub lo recibirá mediante usys.stdin.read(1)
                 await self.hub.write(char_cmd.encode())
-
+                
         except Exception as e:
-            self.log(f"Error: {e}")
+            self.log(f"Error de conexión: {e}")
         finally:
-            if temp_path and os.path.exists(temp_path): os.unlink(temp_path)
-            if self.hub: await self.hub.disconnect()
+            if self.hub: 
+                await self.hub.disconnect()
             self.running.clear()
+            self.log("Desconectado.")
 
     def start(self):
-        if not self.thread.is_alive(): self.thread.start()
-
-    def stop(self):
-        if self.loop.is_running(): self.loop.call_soon_threadsafe(self.loop.stop)
+        if not self.thread.is_alive(): 
+            self.thread.start()
 
     def send_command(self, cmd: str):
         mapping = {"fwd": "F", "bwd": "B", "left": "L", "right": "R", "stop": "S"}
         char = mapping.get(cmd)
         if char and self.loop.is_running() and self.queue is not None:
+            # Enviamos el comando al bucle de asyncio de forma segura entre hilos
             self.loop.call_soon_threadsafe(self.queue.put_nowait, char)
 
 #La GUI obtiene los inputs desde el teclado o los botones dibujados y genera request de movimiento al hub
