@@ -155,7 +155,7 @@ class LegoGUI:
 
         create_btn("▲", "fwd", 0, 1)
         create_btn("◄", "left", 1, 0)
-        create_btn("■", "stop", 1, 1)
+
         create_btn("►", "right", 1, 2)
         create_btn("▼", "bwd", 2, 1)
 
